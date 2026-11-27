@@ -1,10 +1,11 @@
-import { LeafletMap, TileLayer , CircleMarker} from 'leaflet';
-
-const map = new LeafletMap('map').setView([20, 0], 2);
-
-new TileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+const globe = Globe()(document.getElementById('globeViz'))
+    .globeImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg')
+    .pointLat('lat')
+    .pointLng('lng')
+    .pointColor('color')
+    .pointRadius('size')
+    .pointAltitude('altitude')
+    .pointLabel('label');
 
 let url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
 
@@ -12,6 +13,8 @@ async function getdata(){
     try {
         let res = await fetch(url);
         let data = await res.json();
+     
+        let points = []; //array
 
         data.features.forEach(Element => {
             let place = Element.properties.place;
@@ -24,29 +27,32 @@ async function getdata(){
             let lng =coord[0];
             let lat = coord[1];
 
-            let radius =Math.max(mag*3,1);
+            let color;
+            if (mag>=5){
+                color = 'red';
+            }else if(mag>=3){
+                color="orange";
+            }else{
+                color = "green";
+            }
 
-           function getColor(mag) {
-              if (mag >= 5) return "red";
-               if (mag >= 3) return "orange";
-                 return "green";
-                    }
+            points.push({
+                lat: lat,
+                lng :lng,
+                size:Math.max(mag/10,0.1),
+                altitude:Math.max(mag/100,0.01),
+                color:color,
+                label:`${place}-Magnitude ${mag}`
+                
+            });
     
 
 
 
-            new CircleMarker([lat,lng],{radius:radius,color:getColor(mag)}).addTo(map)
-               .bindPopup(`${place} - Magnitude ${mag}`)
-               .addTo(map)
+            
         });
         
-
-        console.log(data)
-        
-        // console.log(data.features.length);
-        // console.log(data.features[0].geometry.coordinates);
-        //  console.log(data.features[0].properties.mag); 
-
+globe.pointsData(points); 
 
     }
     catch(e){
@@ -54,5 +60,24 @@ async function getdata(){
     }
     
 }
+ // this function for countary name and board
+async function loadCountries() {
+    try {
+        let res = await fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl/example/datasets/ne_110m_admin_0_countries.geojson');
+        let countries = await res.json();
+
+        globe
+            .polygonsData(countries.features)
+            .polygonCapColor(() => 'rgba(255, 255, 255, 0.05)')
+            .polygonSideColor(() => 'rgba(0, 0, 0, 0)')
+            .polygonStrokeColor(() => 'rgba(255, 255, 255, 0.5)')
+            .polygonLabel(d => d.properties.ADMIN);
+    }
+    catch (e) {
+        console.log("error-", e);
+    }
+}
+
+loadCountries();
 
 getdata();
